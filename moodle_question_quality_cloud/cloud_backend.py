@@ -18,10 +18,11 @@ class CloudError(RuntimeError):
 
 
 class Cloud:
-    def __init__(self, url, service_role_key, bucket='moodle-question-xml'):
+    def __init__(self, url, service_role_key, bucket='moodle-quality-question-xml', schema='moodle_quality'):
         self.url=url.rstrip('/')
         self.key=service_role_key
         self.bucket=bucket
+        self.schema=schema
         if not self.url.startswith('https://') or not self.key:
             raise CloudError('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Streamlit secrets')
 
@@ -33,6 +34,9 @@ class Cloud:
         if data is not None and not binary:
             data=json.dumps(data,ensure_ascii=False).encode('utf-8')
             h['Content-Type']='application/json'
+        if path.startswith('/rest/v1/'):
+            h['Accept-Profile']=self.schema
+            h['Content-Profile']=self.schema
         if headers:h.update(headers)
         req=urllib.request.Request(self.url+path, data=data, headers=h,method=method)
         try:
