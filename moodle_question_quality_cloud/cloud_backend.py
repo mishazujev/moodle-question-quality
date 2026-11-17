@@ -117,8 +117,10 @@ def parse_csv(raw):
         result.append({'item_key':str(v['question_id']),'position':str(v['question_id']),
                        'name':v['question_name'],'question_type':v['question_type'],
                        'signature':signature,'attempts':int(attempts), 'facility':f,'discrimination':d})
-    if len(set(x['item_key'] for x in result))!=len(result):
-        raise ValueError('Repeated Q# within this export; cannot distinguish rows safely')
+    repeated=[key for key,count in Counter(r['item_key'] for r in result).items() if count>1]
+    if repeated:
+        examples=', '.join(repeated[:8])
+        raise ValueError(f'Duplicate question numbers in the item table ({examples}). Re-export the quiz statistics from Moodle.')
     canonical=[(r['item_key'],r['signature'],r['attempts'],r['facility'],r['discrimination']) for r in result]
     canonical.sort()
     fingerprint=hashlib.sha256(json.dumps(canonical,ensure_ascii=False,sort_keys=True).encode()).hexdigest()

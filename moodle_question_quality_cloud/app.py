@@ -11,7 +11,7 @@ from workflow import plain,status
 
 st.set_page_config(page_title='Moodle Question Quality',layout='wide')
 st.title('Moodle Question Quality')
-st.caption('Hosted · Supabase history · Notion editorial workflow · Moodle XML exports')
+st.caption('Assessment import · Complete statistics and grades')
 
 
 def config(name):
@@ -97,17 +97,8 @@ def render_statistics_only():
             except Exception as e:st.error(str(e))
 
 
-with st.container(border=True):
-    st.subheader('1 · Import Moodle assessment')
-    import_mode=st.radio('Import destination', ['Supabase and Notion', 'Statistics only'], horizontal=True)
-    if import_mode=='Supabase and Notion':
-        render_assessment_import(cloud,notion,read_reports.clear)
-    else:
-        render_statistics_only()
-
-assessments,quality_rows=read_reports()
-
-with st.expander('One-time migration from your previous Windows app', expanded=False):
+def render_migration():
+    st.subheader('Import old Windows history')
     st.caption('Upload data/quality.sqlite from v3.1 once. Only aggregate question statistics and confirmed identity links are migrated; student responses are not used.')
     old_db=st.file_uploader('Existing quality.sqlite',type=['sqlite','db'],key='old_sqlite')
     migration_ok=st.checkbox('I confirm this is my previous Moodle Question Quality SQLite database')
@@ -125,8 +116,9 @@ with st.expander('One-time migration from your previous Windows app', expanded=F
             read_reports.clear();st.rerun()
         except Exception as e:st.error('Migration failed: '+str(e))
 
-with st.container(border=True):
-    st.subheader('2 · Historical question quality')
+def render_history():
+    assessments,quality_rows=read_reports()
+    st.subheader('Historical question quality')
     st.caption('Quality is a screening signal. Questions with fewer than 10 attempts remain More data.')
     if quality_rows:
         statuses=sorted(set(r['quality'] for r in quality_rows))
@@ -139,8 +131,8 @@ with st.container(border=True):
     with st.expander('Assessment history'):
         st.dataframe(assessments,hide_index=True,use_container_width=True)
 
-with st.container(border=True):
-    st.subheader('3 · Register Moodle question-bank exports')
+def render_bank():
+    st.subheader('Register Moodle question-bank exports')
     st.caption('Moodle XML preferred. HTML contains IDs but cannot serve as a safe revision template. Original XML is kept in private Supabase Storage.')
     exports=st.file_uploader('Select one or more XML/HTML files',type=['xml','html','htm'],accept_multiple_files=True)
     site=st.text_input('Moodle site identifier',value='moodle.mishazujev.com')
@@ -153,8 +145,7 @@ with st.container(border=True):
         try:refresh_pages();st.success(f"Read {len(fetch_pages())} Notion pages")
         except Exception as e:st.error(str(e))
 
-with st.container(border=True):
-    st.subheader('4 · Link stable Moodle IDs to Notion')
+    st.subheader('Link stable Moodle IDs to Notion')
     st.caption('First register XML/HTML exports. Only uniquely matched IDs and reviewed exact-name candidates can be confirmed.')
     bank=cloud.bank_items()
     st.write(f'{len(bank)} bank entries registered.')
@@ -195,8 +186,9 @@ with st.container(border=True):
                     else:st.info('No matching Notion titles')
                 except Exception as e:st.error(str(e))
 
-with st.container(border=True):
-    st.subheader('5 · Update Notion Quality / Fix statuses')
+def render_quality_sync():
+    _,quality_rows=read_reports()
+    st.subheader('Update Notion Quality / Fix statuses')
     st.caption('Only stable Moodle-ID-linked questions. Does not edit Sisu, Vastus, Points, tags, or an active teacher editorial workflow.')
     if st.button('Preview Notion quality changes'):
         try:
@@ -221,8 +213,8 @@ with st.container(border=True):
             st.session_state.pop('notion_changes',None)
             st.session_state.pop('notion_pages',None)
 
-with st.container(border=True):
-    st.subheader('6 · Export approved revisions to Moodle XML')
+def render_publication():
+    st.subheader('Export approved revisions to Moodle XML')
     st.caption('Edit questions in Notion, set Workflow = Ready, then validate the XML. Supported: numerical, shortanswer, truefalse and limited multichoice. Complex/media types are skipped with a reason.')
     if st.button('Prepare XML from Ready questions'):
         try:
@@ -266,4 +258,20 @@ with st.container(border=True):
             except Exception as e:st.error(str(e))
     else:st.info('No XML batches prepared yet.')
 
-st.caption('Grades are written to Notion only after approval. Supabase stores aggregate question statistics. Do not upload individual question responses.')
+tools = {
+    'Assessment history': render_history,
+    'Question bank and ID links': render_bank,
+    'Sync question quality only': render_quality_sync,
+    'Publish revisions to Moodle': render_publication,
+    'Statistics only': render_statistics_only,
+    'Import old Windows history': render_migration,
+}
+
+with st.sidebar.expander('Other tools', expanded=False):
+    tool = st.radio('Page', ['Import assessment', *tools])
+
+if tool == 'Import assessment':
+    st.subheader('Import Moodle assessment')
+    render_assessment_import(cloud, notion, read_reports.clear)
+else:
+    tools[tool]()
