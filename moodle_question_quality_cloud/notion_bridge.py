@@ -108,12 +108,13 @@ class Notion:
                 raise RuntimeError(f'Property {k} exists with wrong type: expected {expected}')
         return list(to_add)
 
-    def all_pages(self):
+    def all_pages(self, data_source_id=DS_ID, filters=None):
         pages=[];cursor=None
         while True:
             payload={'page_size':100}
+            if filters:payload['filter']=filters
             if cursor:payload['start_cursor']=cursor
-            result=self.request('POST','/data_sources/'+DS_ID+'/query',payload)
+            result=self.request('POST','/data_sources/'+data_source_id+'/query',payload)
             pages.extend(p for p in result.get('results',[]) if not p.get('in_trash',False))
             if not result.get('has_more'):break
             cursor=result.get('next_cursor')
@@ -122,6 +123,12 @@ class Notion:
 
     def patch(self, page_id, props):
         return self.request('PATCH','/pages/'+page_id, {'properties':props})
+
+    def create_page(self, data_source_id, properties):
+        return self.request('POST','/pages', {
+            'parent': {'type': 'data_source_id', 'data_source_id': data_source_id},
+            'properties': properties,
+        })
 
 
 def property_values(r):

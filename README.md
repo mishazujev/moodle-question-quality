@@ -6,10 +6,10 @@ Purpose: track Moodle question statistics over time, review quality in Notion `K
 
 ## Regular workflow
 
-1. **Import statistics (section 1).** In Moodle, export a quiz's `questionstats.csv` or `completestats.csv`. Upload or paste it, enter an assessment label (and optionally class/year), then choose **Import and evaluate**. Identical statistics are detected as duplicates. When re-exporting the *same assessment* with updated results, choose **Replace snapshot of existing assessment** rather than **New assessment**.
+1. **Import an assessment (section 1).** Upload the quiz's `completestats.csv` or `questionstats.csv`. To import grades, also upload the CSV from **Results → Grades** for the same quiz. Review the assignment match, choose the prior snapshot if prompted, then preview and approve the import. The receipt lists saved statistics, grade and question changes, and skipped or refused rows. The grade importer fills blank results and creates results for matched students. A recorded grade stays in place. **Statistics only** is available for imports without a Notion assignment.
 2. **Review history (section 2).** Use **Historical question quality** to inspect attempt counts, facility, discrimination and quality suggestions. The review CSV is downloadable.
 3. **Register and link question IDs (sections 3–4; first time or for new questions).** Export the Moodle **question bank as XML** and register it. Preview question-ID matches with Notion and confirm only correct ones. Use manual linking for renamed questions. HTML can help identify IDs but cannot provide XML editing templates. A quiz statistics `Q#` is **not** a stable bank ID.
-4. **Sync quality to Notion (section 5).** Preview changes, check matched questions and approve **Sync approved changes to Notion**. The app does not rewrite question text or answers.
+4. **Review quality (section 5).** Use this section to sync quality independently of a new import. The combined import prefers verified Moodle IDs. With a unique title and type, it can create or update a question for the verified assignment without a bank export. These pages show that assignment's statistics. Register the bank to track the same question across assignments or prepare XML revisions. The assignment carries its `Meetod` link.
 5. **Edit in Notion.** Open `Küsimused`, review problematic questions, make editorial fixes, and set `Workflow = Ready` when finished.
 6. **Export and publish (section 6).** Click **Prepare XML from Ready questions**; examine any skipped items or errors; download the approved XML and mark the batch **Awaiting import**. Import the XML into Moodle **manually**, verify the questions and grading there, then confirm **Published** in the app. A Moodle XML import can create new questions/versions, so inspect the result.
 
@@ -30,7 +30,8 @@ Purpose: track Moodle question statistics over time, review quality in Notion `K
 - Supported XML revisions: numerical, short answer, true/false and limited multiple choice. Complex or media-rich questions may be skipped, with a reason shown.
 - Never mark `Published` until the XML has actually been imported and checked in Moodle.
 - An old local `quality.sqlite` can be migrated once using the **One-time migration** section; do not reimport it repeatedly.
-- Never commit keys, student data, quiz CSVs or source XML to GitHub. Credentials belong only in Streamlit's server-side **App settings → Secrets**.
+- Share **Ülesanded Moodle**, **Tunniteemad**, **Meetodid**, **Küsimused**, **Õpilased**, and **Õpitulemused** with the app's Notion integration as needed for the combined import and its relations.
+- Never commit keys, student data, quiz CSVs or source XML to GitHub. Credentials belong only in Streamlit's server-side **App settings → Secrets**. Use the Grades export for scores. Individual question-response exports should stay in Moodle.
 
 ## Where things live
 

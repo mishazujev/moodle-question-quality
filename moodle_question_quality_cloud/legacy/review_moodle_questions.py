@@ -75,7 +75,7 @@ def read_items(path: Path) -> tuple[list[dict[str, str]], str]:
         # item-analysis table. Numeric answer strings can look like Q# values!
         # Stop at the explicit section header instead of treating answers as items.
         if len(row) >= 4 and (norm(row[0]) == "part of question" and
-                                 norm(row[1]) == "response" and
+                                 norm(row[1]) in ("response", "model response") and
                                  norm(row[2]) == "partial credit"):
             break
         if len(row) >= 4 and (norm(row[0]) == "model response" and

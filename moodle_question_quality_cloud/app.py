@@ -1,10 +1,9 @@
-"""Hosted question-quality workbench. No student-response uploads and no local database."""
+"""Hosted Moodle assessment import and question-quality workbench."""
 from __future__ import annotations
 import hashlib
 import hmac
-import secrets
-from datetime import datetime
 import streamlit as st
+from assessment_ui import render_assessment_import
 from cloud_backend import Cloud,parse_csv,row_summary,report_csv
 from cloud_workflow import bank_import,match_bank,confirm_links,build_batch,save_batch,confirm_published
 from notion_bridge import Notion,plan as notion_plan,title
@@ -63,8 +62,7 @@ def refresh_pages():
     st.session_state['notion_pages']=load_notion()
 
 
-with st.container(border=True):
-    st.subheader('1 · Import Moodle statistics')
+def render_statistics_only():
     uploader=st.file_uploader('Upload questionstats.csv or completestats.csv',type=['csv'])
     pasted=st.text_area('Or paste the complete CSV text',height=120)
     raw=pasted.encode('utf-8-sig') if pasted.strip() else (uploader.getvalue() if uploader else None)
@@ -74,7 +72,7 @@ with st.container(border=True):
             rows,stats_hash,report_type=parse_csv(raw)
             st.info(f'{len(rows)} individual question-statistics rows detected. Complete reports and questionstats exports deduplicate by statistical content.')
         except Exception as e:st.error('Invalid statistics export: '+str(e))
-    assessments,quality_rows=read_reports()
+    assessments,_=read_reports()
     already=next((a for a in assessments if a['stats_hash']==stats_hash),None) if stats_hash else None
     if already:st.success('These statistics are already stored under '+already['assessment_key'])
     with st.expander('Assessment metadata / updated export',expanded=False):
@@ -97,6 +95,17 @@ with st.container(border=True):
                 st.success(f"Import result: {outcome}")
                 read_reports.clear();st.rerun()
             except Exception as e:st.error(str(e))
+
+
+with st.container(border=True):
+    st.subheader('1 · Import Moodle assessment')
+    import_mode=st.radio('Import destination', ['Supabase and Notion', 'Statistics only'], horizontal=True)
+    if import_mode=='Supabase and Notion':
+        render_assessment_import(cloud,notion,read_reports.clear)
+    else:
+        render_statistics_only()
+
+assessments,quality_rows=read_reports()
 
 with st.expander('One-time migration from your previous Windows app', expanded=False):
     st.caption('Upload data/quality.sqlite from v3.1 once. Only aggregate question statistics and confirmed identity links are migrated; student responses are not used.')
@@ -257,4 +266,4 @@ with st.container(border=True):
             except Exception as e:st.error(str(e))
     else:st.info('No XML batches prepared yet.')
 
-st.caption('Security: server-side keys only; never upload student responses; manual Notion approval; Moodle import is always manual.')
+st.caption('Grades are written to Notion only after approval. Supabase stores aggregate question statistics. Do not upload individual question responses.')
