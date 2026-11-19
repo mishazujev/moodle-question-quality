@@ -24,15 +24,25 @@ def preview_rows(plans):
             'type': row['kind'],
             'name': row['name'],
             'action': row['status'],
+            'reason': row['reason'],
             'fields': ', '.join(row['properties']),
             'quality': row['properties'].get('Quality', {}).get('select', {}).get('name', ''),
             'workflow': row['properties'].get('Workflow', {}).get('select', {}).get('name', ''),
             'points': row['properties'].get('Punktid', {}).get('number'),
             'maximum': row['properties'].get('Maksimum', {}).get('number'),
-            'reason': row['reason'],
         }
         for row in plans
     ]
+
+
+def assignment_state(page):
+    """Compare meaningful values without depending on relation order or UUID formatting."""
+    return (
+        page_name(page, 'Title'),
+        tuple(sorted(value.replace('-', '').lower() for value in relation_ids(page, 'Meetod'))),
+        tuple(sorted(value.replace('-', '').lower() for value in relation_ids(page, 'Teema'))),
+        bool(page.get('in_trash') or page.get('archived')),
+    )
 
 
 def show_receipt(snapshot, receipt):
@@ -102,7 +112,7 @@ def render_assessment_import(cloud, notion, clear_reports):
     try:
         method = relation_ids(matched, 'Meetod')
         if not method:
-            st.warning('This assignment has no Meetod. Question pages will link to the assignment and its available topics.')
+            st.warning('The app cannot see a Meetod link. If it is populated in Notion, connect the Meetodid database to Moodle Question Quality and refresh the assignment match.')
         assessments = cloud.assessments()
         _, prior = select_snapshot(assessments, matched, stats_hash)
     except Exception as error:
@@ -128,8 +138,11 @@ def render_assessment_import(cloud, notion, clear_reports):
         state.pop('assessment_preview', None)
         try:
             with st.spinner('Comparing Moodle exports with Notion and assessment history…'):
-                preview = preview_import(notion, cloud, matched, rows, stats_hash, grade_rows, legacy_key)
-            state['assessment_preview'] = (preview_inputs, preview)
+                fresh = notion.request('GET', '/pages/' + matched['id'])
+                if fresh.get('in_trash') or fresh.get('archived'):
+                    raise ValueError('The selected assignment is archived or deleted.')
+                preview = preview_import(notion, cloud, fresh, rows, stats_hash, grade_rows, legacy_key)
+            state['assessment_preview'] = (preview_inputs, preview, assignment_state(fresh))
         except Exception as error:
             st.error(f'Preview failed. Check that the relevant Notion databases are shared with the app. {error}')
 
@@ -151,11 +164,8 @@ def render_assessment_import(cloud, notion, clear_reports):
         try:
             with import_lock(), st.spinner('Rechecking and applying the approved import…'):
                 fresh = notion.request('GET', '/pages/' + matched['id'])
-                if (fresh.get('in_trash') or fresh.get('archived') or
-                    page_name(fresh, 'Title') != page_name(matched, 'Title') or
-                    relation_ids(fresh, 'Meetod') != method or
-                    relation_ids(fresh, 'Teema') != relation_ids(matched, 'Teema')):
-                    raise ValueError('The assignment changed. Refresh the assignment match and rebuild the preview.')
+                if assignment_state(fresh) != saved[2]:
+                    raise ValueError('The assignment title, topic, method, or access changed after preview. Build a new preview.')
                 current = preview_import(notion, cloud, fresh, rows, stats_hash, grade_rows, legacy_key)
                 if current != saved[1]:
                     raise ValueError('The preview is out of date. Build a new preview before importing.')
